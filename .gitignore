@@ -49,3 +49,7 @@ venv.bak/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local Git Push Script
+push_to_github.py
+
