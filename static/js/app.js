@@ -12,7 +12,8 @@ let state = {
     selectedNote: null,
     currentCategory: 'all',
     searchQuery: '',
-    currentTemplateStyle: 'casual'
+    currentTemplateStyle: 'casual',
+    isComposerDirty: false
 };
 
 // DOM Elements
@@ -55,7 +56,8 @@ const elements = {
     tweetLinkPreview: document.getElementById('tweet-link-preview'),
     toast: document.getElementById('toast'),
     toastMessage: document.getElementById('toast-message'),
-    toastIcon: document.getElementById('toast-icon')
+    toastIcon: document.getElementById('toast-icon'),
+    searchStatus: document.getElementById('search-status')
 };
 
 // Progress Ring Configuration
@@ -71,6 +73,45 @@ if (elements.charProgress) {
 // -------------------------------------------------------------
 // HTML & Text Utilities
 // -------------------------------------------------------------
+
+function getRelativeDateString(isoDateStr) {
+    if (!isoDateStr) return "";
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const recordDate = new Date(isoDateStr);
+    recordDate.setHours(0, 0, 0, 0);
+    
+    const diffTime = today - recordDate;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return "Today";
+    if (diffDays === 1) return "Yesterday";
+    if (diffDays > 1 && diffDays < 30) return `${diffDays} days ago`;
+    if (diffDays >= 30) {
+        const months = Math.floor(diffDays / 30);
+        return months === 1 ? "1 month ago" : `${months} months ago`;
+    }
+    return "";
+}
+
+function highlightDOMText(node, keyword) {
+    if (!keyword) return;
+    const escapedKeyword = keyword.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const regex = new RegExp(`(${escapedKeyword})`, 'gi');
+    
+    if (node.nodeType === Node.TEXT_NODE) {
+        const matches = node.nodeValue.match(regex);
+        if (matches) {
+            const span = document.createElement('span');
+            span.innerHTML = node.nodeValue.replace(regex, '<mark class="search-highlight">$1</mark>');
+            node.parentNode.replaceChild(span, node);
+        }
+    } else if (node.nodeType === Node.ELEMENT_NODE && node.childNodes && !['SCRIPT', 'STYLE'].includes(node.nodeName)) {
+        const children = Array.from(node.childNodes);
+        children.forEach(child => highlightDOMText(child, keyword));
+    }
+}
 
 function stripHtmlToPlainText(htmlStr) {
     // Create a temporary element to let browser parse the HTML
@@ -233,6 +274,19 @@ function filterAndRenderNotes() {
     
     elements.feedShimmer.classList.add('hidden');
     
+    // Show/hide search status counter
+    if (state.searchQuery || state.currentCategory !== 'all') {
+        elements.searchStatus.textContent = `Showing ${state.filteredNotes.length} of ${state.notes.length} updates`;
+        elements.searchStatus.classList.remove('hidden');
+    } else {
+        elements.searchStatus.classList.add('hidden');
+    }
+    
+    // Auto-scroll on mobile screens when list changes
+    if (window.innerWidth <= 768 && (state.searchQuery || state.currentCategory !== 'all')) {
+        elements.notesList.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    
     if (state.filteredNotes.length === 0) {
         elements.notesList.classList.add('hidden');
         elements.noResults.classList.remove('hidden');
@@ -256,6 +310,8 @@ function renderNotesList() {
         
         // Badge color class
         const badgeClass = `badge-${note.category.toLowerCase()}`;
+        const relativeDateStr = getRelativeDateString(note.iso_date);
+        const relativeDateHtml = relativeDateStr ? `• <span class="relative-date">${relativeDateStr}</span>` : '';
         
         card.innerHTML = `
             <div class="note-card-header">
@@ -263,10 +319,13 @@ function renderNotesList() {
                     <span class="note-badge ${badgeClass}">${note.category}</span>
                     <span class="note-date">
                         <i data-lucide="calendar"></i>
-                        ${note.date_str}
+                        ${note.date_str} ${relativeDateHtml}
                     </span>
                 </div>
                 <div class="note-card-actions">
+                    <button class="card-action-btn copy-card-link-btn" title="Copy release link to clipboard">
+                        <i data-lucide="link"></i>
+                    </button>
                     <button class="card-action-btn copy-card-content-btn" title="Copy note to clipboard">
                         <i data-lucide="copy"></i>
                     </button>
@@ -284,7 +343,26 @@ function renderNotesList() {
             </a>
         `;
         
-        // Wire up copy button click
+        // Apply text highlighting for search query
+        if (state.searchQuery) {
+            const contentEl = card.querySelector('.note-content');
+            highlightDOMText(contentEl, state.searchQuery);
+        }
+        
+        // Wire up copy link button click
+        const copyLinkBtn = card.querySelector('.copy-card-link-btn');
+        copyLinkBtn.addEventListener('click', async (e) => {
+            e.stopPropagation(); // Prevent card selection
+            try {
+                await navigator.clipboard.writeText(note.link);
+                showToast("Release link copied to clipboard!");
+            } catch (err) {
+                console.error("Failed to copy link:", err);
+                showToast("Failed to copy link.", "error");
+            }
+        });
+        
+        // Wire up copy content button click
         const copyBtn = card.querySelector('.copy-card-content-btn');
         copyBtn.addEventListener('click', async (e) => {
             e.stopPropagation(); // Prevent card selection
@@ -317,6 +395,13 @@ function renderNotesList() {
 // -------------------------------------------------------------
 
 function selectNote(note) {
+    // Warning if dirty and switching notes
+    if (state.isComposerDirty && state.selectedNote && state.selectedNote.id !== note.id) {
+        const confirmDiscard = confirm("You have unsubmitted changes in your Tweet Composer. Do you want to discard them and select this release note?");
+        if (!confirmDiscard) return;
+    }
+    state.isComposerDirty = false;
+
     state.selectedNote = note;
     
     // Toggle active class in the DOM list
@@ -364,6 +449,12 @@ function selectNote(note) {
 }
 
 function deselectNote() {
+    if (state.isComposerDirty) {
+        const confirmDiscard = confirm("You have unsubmitted changes in your Tweet Composer. Do you want to discard them?");
+        if (!confirmDiscard) return;
+    }
+    state.isComposerDirty = false;
+
     state.selectedNote = null;
     
     // Remove selection highlight from list
@@ -570,16 +661,28 @@ function setupEventListeners() {
     // Deselect Composer button
     elements.deselectBtn.addEventListener('click', deselectNote);
     
-    // Live update Tweet Char count
-    elements.tweetTextarea.addEventListener('input', updateCharCounter);
+    // Live update Tweet Char count & track user edits
+    elements.tweetTextarea.addEventListener('input', () => {
+        state.isComposerDirty = true;
+        updateCharCounter();
+    });
     
     // Suggestion templates selection
     elements.suggestionBtns.forEach(btn => {
         btn.addEventListener('click', () => {
+            const targetStyle = btn.getAttribute('data-template');
+            if (state.currentTemplateStyle === targetStyle) return;
+            
+            if (state.selectedNote && state.isComposerDirty) {
+                const confirmDiscard = confirm("Overwriting with a template will discard your current edits. Continue?");
+                if (!confirmDiscard) return;
+            }
+            
             elements.suggestionBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             
-            state.currentTemplateStyle = btn.getAttribute('data-template');
+            state.currentTemplateStyle = targetStyle;
+            state.isComposerDirty = false;
             
             if (state.selectedNote) {
                 const text = generateTweetTemplate(state.selectedNote, state.currentTemplateStyle);
