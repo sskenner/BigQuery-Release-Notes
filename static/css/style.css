@@ -692,33 +692,57 @@ a:hover {
     height: 14px;
 }
 
-.note-action {
-    display: inline-flex;
+.note-card-actions {
+    display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--text-muted);
-    transition: all 0.2s ease;
+    gap: 8px;
     opacity: 0;
     transform: translateX(5px);
+    transition: all 0.2s ease;
 }
 
-.note-card:hover .note-action {
+.note-card:hover .note-card-actions,
+.note-card.selected .note-card-actions {
     opacity: 1;
     transform: translateX(0);
 }
 
-.note-card.selected .note-action {
-    opacity: 1;
-    transform: translateX(0);
-    color: var(--google-blue);
+.card-action-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-glass);
+    color: var(--text-muted);
+    padding: 6px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
 }
 
-.note-action i {
-    width: 15px;
-    height: 15px;
+.card-action-btn i {
+    width: 14px;
+    height: 14px;
 }
+
+.card-action-btn:hover {
+    background: rgba(66, 133, 244, 0.15);
+    border-color: rgba(66, 133, 244, 0.5);
+    color: white;
+}
+
+.card-action-btn.copy-card-content-btn:hover {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.5);
+    color: var(--color-feature);
+}
+
+.card-action-btn.select-card-btn:hover {
+    background: rgba(29, 155, 240, 0.15);
+    border-color: rgba(29, 155, 240, 0.5);
+    color: var(--twitter-blue);
+}
+
 
 /* HTML content parsed inside note cards */
 .note-content {

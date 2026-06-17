@@ -13,6 +13,7 @@ let state = {
 // DOM Elements
 const elements = {
     refreshBtn: document.getElementById('refresh-btn'),
+    exportCsvBtn: document.getElementById('export-csv-btn'),
     lastUpdatedTime: document.getElementById('last-updated-time'),
     notesList: document.getElementById('notes-list'),
     feedShimmer: document.getElementById('feed-shimmer'),
@@ -259,9 +260,13 @@ function renderNotesList() {
                         ${note.date_str}
                     </span>
                 </div>
-                <div class="note-action">
-                    <i data-lucide="twitter"></i>
-                    <span>Draft Tweet</span>
+                <div class="note-card-actions">
+                    <button class="card-action-btn copy-card-content-btn" title="Copy note to clipboard">
+                        <i data-lucide="copy"></i>
+                    </button>
+                    <button class="card-action-btn select-card-btn" title="Draft Tweet">
+                        <i data-lucide="twitter"></i>
+                    </button>
                 </div>
             </div>
             <div class="note-content">
@@ -272,6 +277,21 @@ function renderNotesList() {
                 Official release details
             </a>
         `;
+        
+        // Wire up copy button click
+        const copyBtn = card.querySelector('.copy-card-content-btn');
+        copyBtn.addEventListener('click', async (e) => {
+            e.stopPropagation(); // Prevent card selection
+            const plainText = stripHtmlToPlainText(note.content);
+            const copyText = `Google BigQuery Release Note (${note.date_str}) - ${note.category}:\n\n${plainText}\n\nRead more: ${note.link}`;
+            try {
+                await navigator.clipboard.writeText(copyText);
+                showToast("Note content copied to clipboard!");
+            } catch (err) {
+                console.error("Failed to copy:", err);
+                showToast("Failed to copy note.", "error");
+            }
+        });
         
         // Handle selection on card click
         card.addEventListener('click', () => {
@@ -407,13 +427,50 @@ function updateCharCounter() {
     }
 }
 
+function exportToCSV() {
+    if (state.filteredNotes.length === 0) {
+        showToast("No release notes to export.", "error");
+        return;
+    }
+    
+    const headers = ["ID", "Date", "Category", "Content", "Link"];
+    
+    const rows = state.filteredNotes.map(note => {
+        const plainContent = stripHtmlToPlainText(note.content);
+        return [
+            note.id,
+            note.date_str,
+            note.category,
+            plainContent,
+            note.link
+        ].map(val => `"${val.replace(/"/g, '""')}"`);
+    });
+    
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    
+    const dateStr = new Date().toISOString().slice(0, 10);
+    link.setAttribute("download", `bq_releases_export_${dateStr}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showToast("CSV export completed successfully!");
+}
+
 // -------------------------------------------------------------
 // Event Listeners Setup
 // -------------------------------------------------------------
 
 function setupEventListeners() {
-    // Refresh Buttons
+    // Refresh & Export Buttons
     elements.refreshBtn.addEventListener('click', () => loadReleaseNotes(true));
+    elements.exportCsvBtn.addEventListener('click', exportToCSV);
     elements.retryBtn.addEventListener('click', () => loadReleaseNotes(true));
     
     // Search Actions
