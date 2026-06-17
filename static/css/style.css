@@ -41,6 +41,47 @@
     --radius-full: 9999px;
 }
 
+body.light-theme {
+    --bg-dark: #f8fafc;
+    --bg-glass: rgba(255, 255, 255, 0.7);
+    --bg-glass-light: rgba(241, 245, 249, 0.55);
+    --bg-glass-hover: rgba(226, 232, 240, 0.8);
+    --border-glass: rgba(203, 213, 225, 0.45);
+    --border-glass-active: rgba(66, 133, 244, 0.7);
+    
+    --text-primary: #0f172a;
+    --text-secondary: #334155;
+    --text-muted: #64748b;
+    
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 12px 30px rgba(0, 0, 0, 0.12);
+    --shadow-glow: 0 0 15px rgba(66, 133, 244, 0.15);
+}
+
+body.light-theme .glow-bg::before,
+body.light-theme .glow-bg::after {
+    opacity: 0.07;
+}
+
+body.light-theme .note-card.selected {
+    background-color: rgba(66, 133, 244, 0.05);
+    border-color: var(--google-blue);
+}
+
+body.light-theme .note-content code {
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+body.light-theme .note-content pre {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+body.light-theme .card-action-btn {
+    background: rgba(0, 0, 0, 0.02);
+}
+
 * {
     box-sizing: border-box;
     margin: 0;

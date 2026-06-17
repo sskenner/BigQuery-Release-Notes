@@ -1,5 +1,10 @@
 // BigQuery Release Radar Frontend Logic
 
+// Check localStorage for saved theme preference immediately to prevent FOUC
+if (localStorage.getItem('theme') === 'light') {
+    document.body.classList.add('light-theme');
+}
+
 // App State
 let state = {
     notes: [],
@@ -14,6 +19,7 @@ let state = {
 const elements = {
     refreshBtn: document.getElementById('refresh-btn'),
     exportCsvBtn: document.getElementById('export-csv-btn'),
+    themeToggleBtn: document.getElementById('theme-toggle-btn'),
     lastUpdatedTime: document.getElementById('last-updated-time'),
     notesList: document.getElementById('notes-list'),
     feedShimmer: document.getElementById('feed-shimmer'),
@@ -473,6 +479,26 @@ function setupEventListeners() {
     elements.exportCsvBtn.addEventListener('click', exportToCSV);
     elements.retryBtn.addEventListener('click', () => loadReleaseNotes(true));
     
+    // Theme Toggle button
+    elements.themeToggleBtn.addEventListener('click', () => {
+        document.body.classList.toggle('light-theme');
+        const isLight = document.body.classList.contains('light-theme');
+        const themeIcon = document.getElementById('theme-icon');
+        
+        if (isLight) {
+            localStorage.setItem('theme', 'light');
+            elements.themeToggleBtn.setAttribute('title', 'Switch to Dark Mode');
+            themeIcon.setAttribute('data-lucide', 'moon');
+        } else {
+            localStorage.setItem('theme', 'dark');
+            elements.themeToggleBtn.setAttribute('title', 'Switch to Light Mode');
+            themeIcon.setAttribute('data-lucide', 'sun');
+        }
+        
+        // Refresh lucide icons to swap the SVGs
+        lucide.createIcons();
+    });
+    
     // Search Actions
     elements.searchInput.addEventListener('input', (e) => {
         state.searchQuery = e.target.value;
@@ -598,6 +624,24 @@ function setupEventListeners() {
     });
 }
 
+function initTheme() {
+    const savedTheme = localStorage.getItem('theme');
+    const themeIcon = document.getElementById('theme-icon');
+    
+    if (savedTheme === 'light') {
+        document.body.classList.add('light-theme');
+        if (elements.themeToggleBtn && themeIcon) {
+            elements.themeToggleBtn.setAttribute('title', 'Switch to Dark Mode');
+            themeIcon.setAttribute('data-lucide', 'moon');
+        }
+    } else {
+        if (elements.themeToggleBtn && themeIcon) {
+            elements.themeToggleBtn.setAttribute('title', 'Switch to Light Mode');
+            themeIcon.setAttribute('data-lucide', 'sun');
+        }
+    }
+}
+
 // -------------------------------------------------------------
 // App Initialization
 // -------------------------------------------------------------
@@ -608,6 +652,7 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.composerCard.classList.add('collapsed');
     }
     
+    initTheme();
     setupEventListeners();
     loadReleaseNotes();
 });
